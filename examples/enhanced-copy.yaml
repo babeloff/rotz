@@ -1,0 +1,80 @@
+# Enhanced Copy Configuration Example
+# This demonstrates the new enhanced copy functionality with file management types
+
+# Global configuration
+dotfiles: ~/.dotfiles
+link_type: copy # Global default: symbolic, hard, copy, external, encrypted
+encryption:
+  # Path to your age identity file (private key)
+  identity_path: ~/.age/key.txt
+  # Your age public key for encryption
+  recipient: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+
+# Link configurations with type overrides
+links:
+  # Uses global link_type (copy)
+  .bashrc: ~/.bashrc
+  .vimrc: ~/.vimrc
+
+  # Enhanced format with type overrides
+
+  # Copy files: uses global link_type (copy), source -> target sync when both exist
+  .gitignore_global:
+    targets: ~/.gitignore_global
+    # No type specified - uses global link_type (copy)
+
+  .tmux.conf:
+    targets: [~/.tmux.conf, ~/.config/tmux/tmux.conf]
+    type: copy # Explicit override (same as global default)
+
+  # Record files: record changes from external applications, target -> source sync when both exist
+  .gitconfig:
+    targets: ~/.gitconfig
+    type: record
+
+  .vscode/settings.json:
+    targets: ~/.vscode-oss/settings.json
+    type: record
+
+  # IDE settings that are frequently modified through GUI
+  .config/Code/User/settings.json:
+    targets: ~/.config/Code/User/settings.json
+    type: record
+
+  # Application config modified by the app itself
+  .config/fish/fish_variables:
+    targets: ~/.config/fish/fish_variables
+    type: record
+
+  # Encrypted files: contain sensitive data, target -> source sync when both exist
+  # Source (in dotfiles) is encrypted, target (live file) is plaintext
+  .ssh/id_rsa:
+    targets: ~/.ssh/id_rsa
+    type: encrypted
+
+  .aws/credentials:
+    targets: ~/.aws/credentials
+    type: encrypted
+
+  .env.secrets:
+    targets: [~/.env.local, ~/.config/app/.env]
+    type: encrypted
+
+  # GPG config (encrypted in dotfiles, plain when deployed)
+  .gnupg/gpg.conf:
+    targets: ~/.gnupg/gpg.conf
+    type: encrypted
+
+# File synchronization behavior:
+# - Neither exists: Both created empty
+# - Only source exists: source -> target
+# - Only target exists: target -> source
+# - Both exist:
+#   * symbolic/hard/copy: source -> target (managed in dotfiles)
+#   * record: target -> source (record changes from external apps)
+#   * encrypted: target -> source (source encrypted, target plaintext)
+#
+# Type hierarchy:
+# - Global link_type in config.yaml sets the default
+# - Individual 'type' field overrides the global default
+# - Available types: symbolic, hard, copy, record, encrypted

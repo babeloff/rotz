@@ -21,6 +21,7 @@ use self::{
 use crate::{
   FILE_EXTENSIONS_GLOB, FileFormat,
   config::Config,
+  encryption::LinkConfig,
   helpers,
   templating::{self, Engine, Parameters},
 };
@@ -47,7 +48,7 @@ impl From<repr::InstallsCanonical> for Option<Installs> {
 
 #[derive(Default, Clone, Debug)]
 pub struct Dot {
-  pub(crate) links: Option<HashMap<PathBuf, HashSet<PathBuf>>>,
+  pub(crate) links: Option<HashMap<PathBuf, LinkConfig>>,
   pub(crate) installs: Option<Installs>,
   pub(crate) depends: Option<HashSet<String>>,
 }

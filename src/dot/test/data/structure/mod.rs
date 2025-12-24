@@ -17,6 +17,7 @@ static CONFIG: LazyLock<Config> = LazyLock::new(|| Config {
       "nest" => value::Value::from("nest")
     }.into()
   },
+  encryption: crate::encryption::EncryptionConfig::default(),
 });
 
 pub(crate) fn get_parameters<'a>() -> Parameters<'a> {

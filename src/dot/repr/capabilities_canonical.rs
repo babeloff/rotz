@@ -13,17 +13,18 @@ use tracing::instrument;
 use velcro::hash_set;
 
 use crate::{
+  encryption::LinkConfig,
   helpers::{self, MultipleErrors},
   templating::{Engine, Parameters},
 };
 
-use super::{CapabilitiesComplex, DotCanonical, InstallsCanonical, LinksComplex, Merge};
+use super::{CapabilitiesComplex, DotCanonical, EnhancedLinkTarget, InstallsCanonical, LinksComplex, Merge};
 
 #[derive(Deserialize, Clone, Default, Debug)]
 #[cfg_attr(test, derive(Dummy))]
 #[serde(deny_unknown_fields)]
 pub struct CapabilitiesCanonical {
-  pub links: Option<HashMap<PathBuf, HashSet<PathBuf>>>,
+  pub links: Option<HashMap<PathBuf, LinkConfig>>,
   pub installs: Option<InstallsCanonical>,
   pub depends: Option<HashSet<String>>,
 }
@@ -35,14 +36,41 @@ impl From<CapabilitiesComplex> for CapabilitiesCanonical {
       links: value.links.map(|links| {
         links
           .into_iter()
-          .map(|l| {
-            (
-              l.0,
-              match l.1 {
-                LinksComplex::One(o) => hash_set!(o),
-                LinksComplex::Many(m) => m,
+          .map(|(source_path, link_complex)| {
+            let link_config = match link_complex {
+              LinksComplex::One(target) => LinkConfig {
+                targets: hash_set!(target),
+                link_type: None,
               },
-            )
+              LinksComplex::Many(targets) => LinkConfig { targets, link_type: None },
+              LinksComplex::Enhanced(config) => config,
+              LinksComplex::EnhancedMap(map) => {
+                // For enhanced map, we need to flatten it into individual configs
+                // This is a simplified approach - in practice, you might want to handle this differently
+                let mut all_targets = HashSet::new();
+                let mut link_type = None;
+
+                for (target_path, enhanced_target) in map {
+                  match enhanced_target {
+                    EnhancedLinkTarget::Single { target, link_type: lt } => {
+                      all_targets.insert(target);
+                      link_type = lt;
+                    }
+                    EnhancedLinkTarget::Multiple { targets, link_type: lt } => {
+                      all_targets.extend(targets);
+                      link_type = lt;
+                    }
+                    EnhancedLinkTarget::TypeOnly { link_type: lt } => {
+                      all_targets.insert(target_path);
+                      link_type = lt;
+                    }
+                  }
+                }
+
+                LinkConfig { targets: all_targets, link_type }
+              }
+            };
+            (source_path, link_config)
           })
           .collect::<HashMap<_, _>>()
       }),
@@ -101,12 +129,16 @@ impl Merge<Self> for CapabilitiesCanonical {
   fn merge(mut self, Self { mut links, installs, depends }: Self) -> Self {
     if let Some(self_links) = &mut self.links {
       if let Some(merge_links) = &mut links {
-        for l in &mut *merge_links {
-          if self_links.contains_key(l.0) {
-            let self_links_value = self_links.get_mut(l.0).unwrap();
-            self_links_value.extend(l.1.clone());
+        for (source_path, link_config) in &mut *merge_links {
+          if let Some(existing_config) = self_links.get_mut(source_path) {
+            // Merge the target sets
+            existing_config.targets.extend(link_config.targets.clone());
+            // For link type override, prefer the new one if it's specified
+            if link_config.link_type.is_some() {
+              existing_config.link_type = link_config.link_type.clone();
+            }
           } else {
-            self_links.insert(l.0.clone(), l.1.clone());
+            self_links.insert(source_path.clone(), link_config.clone());
           }
         }
       }

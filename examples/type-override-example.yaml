@@ -1,0 +1,136 @@
+# Type Override System Example
+# This demonstrates the complete type override system in rotz
+# showing how individual files can override the global link_type
+
+# Global Configuration (config.yaml)
+# Set this in ~/.config/rotz/config.yaml or your config file location
+# ---
+# dotfiles: ~/.dotfiles
+# link_type: copy  # Global default - all files will use this unless overridden
+#
+# encryption:
+#   identity_path: ~/.age/key.txt
+#   recipient: age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
+# ---
+
+# Individual File Configurations (dot.yaml)
+# Each file can override the global link_type using the 'type' field
+
+links:
+  # ===== NO TYPE OVERRIDE - USES GLOBAL DEFAULT =====
+  # These files use the global link_type (copy in this example)
+
+  # Simple format - uses global link_type
+  .bashrc: ~/.bashrc
+  .vimrc: ~/.vimrc
+
+  # Extended format without type override - still uses global link_type
+  .gitignore_global:
+    targets: ~/.gitignore_global
+    # No 'type' field = uses global link_type (copy)
+
+  # Multiple targets without type override
+  .tmux.conf:
+    targets: [~/.tmux.conf, ~/.config/tmux/tmux.conf]
+    # No 'type' field = uses global link_type (copy)
+
+  # ===== TYPE OVERRIDES - OVERRIDE GLOBAL DEFAULT =====
+
+  # Explicit copy override (same as global default but explicit)
+  .zshrc:
+    targets: ~/.zshrc
+    type: copy # Explicit override to copy type
+
+  # Symbolic link override
+  .profile:
+    targets: ~/.profile
+    type: symbolic # Override to symbolic link
+
+  # Hard link override
+  .inputrc:
+    targets: ~/.inputrc
+    type: hard # Override to hard link
+
+  # Record type override - for recording changes from external applications
+  .gitconfig:
+    targets: ~/.gitconfig
+    type: record # Record changes made by external apps
+
+  .vscode/settings.json:
+    targets: ~/.vscode/settings.json
+    type: record # Record changes made through VS Code GUI
+
+  .config/Code/User/keybindings.json:
+    targets: ~/.config/Code/User/keybindings.json
+    type: record # Record changes made by IDE
+
+  .config/fish/fish_variables:
+    targets: ~/.config/fish/fish_variables
+    type: record # Record changes made by fish shell
+
+  # Encrypted type override - for sensitive files requiring encryption
+  # Source (in dotfiles) is encrypted, target (live file) is plaintext
+  .ssh/id_rsa:
+    targets: ~/.ssh/id_rsa
+    type: encrypted # SSH private key encrypted in dotfiles, plain in ~/.ssh/
+
+  .aws/credentials:
+    targets: ~/.aws/credentials
+    type: encrypted # AWS credentials encrypted in dotfiles, plain when deployed
+
+  .env.secrets:
+    targets: [~/.env.local, ~/.config/app/.env]
+    type: encrypted # Environment secrets encrypted in dotfiles, plain when deployed
+
+  .gnupg/gpg.conf:
+    targets: ~/.gnupg/gpg.conf
+    type: encrypted # GPG config encrypted in dotfiles, plain when deployed
+
+
+# ===== SYNCHRONIZATION BEHAVIOR =====
+#
+# The type determines both linking method and sync direction:
+#
+# SYMBOLIC (type: symbolic):
+# - Creates symbolic link from dotfiles to target
+# - No file synchronization (standard rotz behavior)
+#
+# HARD (type: hard):
+# - Creates hard link from dotfiles to target
+# - No file synchronization (standard rotz behavior)
+#
+# COPY (type: copy):
+# - Copies file from dotfiles to target
+# - When both exist: dotfiles → target (source authoritative)
+#
+# RECORD (type: record):
+# - Copies file from dotfiles to target initially
+# - When both exist: target → dotfiles (records external changes)
+#
+# ENCRYPTED (type: encrypted):
+# - Stores file encrypted in dotfiles, decrypted as live file
+# - When both exist: target → dotfiles (live file authoritative)
+# - Source (dotfiles) encrypted, target (live file) plaintext
+# - Requires age encryption setup
+
+# ===== FILE EXISTENCE SCENARIOS =====
+#
+# All copy-based types (copy, external, encrypted) follow these rules:
+#
+# | Source Exists | Target Exists | Action               |
+# |---------------|---------------|----------------------|
+# | No            | No            | Create both empty    |
+# | No            | Yes           | target → source      |
+# | Yes           | No            | source → target      |
+# | Yes           | Yes           | Depends on type ↓    |
+
+# ===== CONFIGURATION HIERARCHY =====
+#
+# 1. Global link_type in config.yaml (e.g., "copy")
+# 2. Individual 'type' field overrides global setting
+# 3. If no 'type' field specified, uses global link_type
+#
+# This allows:
+# - Set reasonable global default (e.g., copy for most files)
+# - Override specific files that need different behavior
+# - Maintain clean, minimal configuration for common cases

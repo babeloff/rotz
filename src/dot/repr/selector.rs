@@ -9,7 +9,6 @@ use tap::Pipe;
 
 use crate::helpers::{MultipleErrors, os};
 use crate::templating::{self, Engine, Parameters};
-use thiserror::Error;
 
 #[derive(Debug, EnumString, Hash, PartialEq, Eq, Clone)]
 #[cfg_attr(test, derive(Dummy))]
@@ -160,18 +159,26 @@ impl Selectors {
   }
 }
 
-#[derive(Error, Debug, Diagnostic)]
+#[derive(thiserror::Error, Diagnostic, Debug)]
 #[error("{reason}")]
 #[diagnostic(code(parsing::selector::error))]
 struct SelectorError {
+  // Note: The fields below trigger "unused assignment" warnings because Rust's
+  // static analysis doesn't recognize that miette's diagnostic macros access them.
+  // This is a known limitation with procedural macros - the fields ARE used for
+  // diagnostic display but the compiler can't see this during lint analysis.
   #[source_code]
+  #[allow(dead_code)]
   src: String,
   #[label(collection, "error happened here")]
+  #[allow(dead_code)]
   labels: Vec<LabeledSpan>,
+  #[allow(dead_code)]
   reason: String,
 }
 
 impl MultipleErrors {
+  #[allow(unused_assignments)]
   fn from_chumsky(selector: &str, errors: Vec<Rich<char>>) -> Self {
     MultipleErrors::from(
       errors

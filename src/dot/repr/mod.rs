@@ -20,7 +20,7 @@ use capabilities_complex::CapabilitiesComplex;
 mod capabilities_canonical;
 pub use capabilities_canonical::*;
 mod links_complex;
-use links_complex::LinksComplex;
+use links_complex::{EnhancedLinkTarget, LinksComplex};
 mod installs_complex;
 use installs_complex::InstallsComplex;
 mod installs_canonical;

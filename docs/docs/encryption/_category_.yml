@@ -1,0 +1,5 @@
+label: 'Encryption'
+position: 4
+link:
+  type: generated-index
+  description: Enhanced copy functionality with encryption support for sensitive dotfiles.

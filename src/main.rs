@@ -38,6 +38,7 @@ use velcro::hash_map;
 
 mod commands;
 mod dot;
+mod encryption;
 mod state;
 mod templating;
 

@@ -18,7 +18,7 @@ use tap::{Pipe, TryConv};
 #[cfg(feature = "profiling")]
 use tracing::instrument;
 
-use crate::{FileFormat, USER_DIRS, helpers};
+use crate::{FileFormat, USER_DIRS, encryption::EncryptionConfig, helpers};
 
 #[derive(Debug, ValueEnum, Clone, Display, Deserialize, Serialize, EnumIs)]
 #[cfg_attr(test, derive(Dummy, PartialEq, Eq))]
@@ -27,8 +27,12 @@ pub enum LinkType {
   Symbolic,
   /// Uses hard links for linking
   Hard,
-  /// Copies files instead of linking
+  /// Copies files from dotfiles to target
   Copy,
+  /// Files recorded from external applications (target -> source)
+  Record,
+  /// Files containing sensitive data requiring encryption
+  Encrypted,
 }
 
 #[cfg(test)]
@@ -65,6 +69,9 @@ pub struct Config {
   /// Variables can be used for templating in dot.(yaml|toml|json) files.
   #[cfg_attr(test, dummy(faker = "ValueFaker"))]
   pub(crate) variables: figment::value::Dict,
+
+  /// Encryption configuration for enhanced copy functionality
+  pub(crate) encryption: crate::encryption::EncryptionConfig,
 }
 
 impl Default for Config {
@@ -79,6 +86,7 @@ impl Default for Config {
       #[cfg(target_os = "macos")]
       shell_command: Some("zsh -c {{ quote \"\" cmd }}".to_owned()),
       variables: figment::value::Dict::new(),
+      encryption: EncryptionConfig::default(),
     }
   }
 }
@@ -126,15 +134,21 @@ fn serialize_config(config: &(impl Serialize + Debug), format: FileFormat) -> Re
 #[diagnostic(code(config::exists::value))]
 pub struct AlreadyExistsError {
   name: String,
+  // Note: The `span` field triggers an "unused assignment" warning because Rust's
+  // static analysis doesn't recognize that miette's #[label] macro accesses it.
+  // This is a known limitation with procedural macros - the field IS used for
+  // diagnostic display but the compiler can't see this during lint analysis.
   #[label("{name} is set here")]
+  #[allow(dead_code)]
   span: SourceSpan,
 }
 
 impl AlreadyExistsError {
   #[cfg_attr(feature = "profiling", instrument)]
+  #[allow(unused_assignments)]
   pub fn new(name: &str, content: &str) -> Self {
     let pat = format!("{name}: ");
-    let span: SourceSpan = if content.starts_with(&pat) {
+    let span = if content.starts_with(&pat) {
       (0, pat.len()).into()
     } else {
       let starts = content.match_indices(&format!("\n{pat}")).collect::<Vec<_>>();

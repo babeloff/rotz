@@ -41,6 +41,7 @@ fn templating(#[case] template: &str, #[case] expected: &str) {
         "nest" => value::Value::from("nest")
       }.into()
     },
+    encryption: crate::encryption::EncryptionConfig::default(),
   };
 
   let cli = Cli {
