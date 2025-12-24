@@ -495,6 +495,7 @@ pub(crate) fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
 mod tests {
   mod common;
   mod copy;
+  mod encrypted;
   mod hard;
   mod symbolic;
 }
